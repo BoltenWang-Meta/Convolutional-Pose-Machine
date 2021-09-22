@@ -26,10 +26,10 @@ class CPM(nn.Module):
         conv2_stage1 = ConvPool(128, 128)
         conv3_stage1 = ConvPool(128, 128)
         conv4_ch, conv4_k, conv4_p = [128, 32, 512, 512, self.lm+1], [5, 9, 1, 1], [2, 4, 0, 0]
-        conv4s_stage1 = [nn.Sequential(
+        conv4s_stage1 = nn.ModuleList([nn.Sequential(
             nn.Conv2d(conv4_ch[i], conv4_ch[i + 1], kernel_size=conv4_k[i], padding=conv4_p[i]),
-            nn.ReLU() ) for i in range(4)]
-        self.stage1 = [conv1_stage1, conv2_stage1, conv3_stage1, conv4s_stage1]
+            nn.ReLU() ) for i in range(4)])
+        self.stage1 = nn.ModuleList([conv1_stage1, conv2_stage1, conv3_stage1, conv4s_stage1])
 
 
         conv1_stagex, conv2_stagex, conv3_stagex, conv4_stagex, Mconv_stagex = \
@@ -42,18 +42,18 @@ class CPM(nn.Module):
             conv4_stage2 = nn.Conv2d(128, 32, kernel_size=5, padding=2)
             mcov_ch, mcov_k, mcov_p = [32 + self.lm + 2, 128, 128, 128, 128, self.lm + 1], \
                                       [11, 11, 11, 1, 1], [5, 5, 5, 0, 0]
-            Mconv_stage2 = [nn.Sequential(
+            Mconv_stage2 = nn.ModuleList([nn.Sequential(
                 nn.Conv2d(mcov_ch[i], mcov_ch[i + 1], kernel_size=mcov_k[i], padding=mcov_p[i]),
-                nn.ReLU() ) for i in range(5)]
+                nn.ReLU() ) for i in range(5)])
             conv1_stagex.append(conv1_stage2)
             conv2_stagex.append(conv2_stage2)
             conv3_stagex.append(conv3_stage2)
             conv4_stagex.append(conv4_stage2)
             Mconv_stagex.append(Mconv_stage2)
-        self.stagex = [conv1_stagex, conv2_stagex, conv3_stagex, conv4_stagex, Mconv_stagex]
+        self.stagex = nn.ModuleList([nn.ModuleList(conv1_stagex), nn.ModuleList(conv2_stagex), nn.ModuleList(conv3_stagex), nn.ModuleList(conv4_stagex), nn.ModuleList(Mconv_stagex)])
 
     def forward(self, img, center_map):
-        pool_center_map = self.center_pool(center_map).unsqueeze(0)
+        pool_center_map = self.center_pool(center_map)
 
         stage1_map = img
         for num, layer in enumerate(self.stage1):
@@ -77,10 +77,12 @@ class CPM(nn.Module):
 
 def test():
     img = torch.rand((1, 3, 368, 368))
-    centermap = torch.zeros((1, 368, 368))
-    model = CPM(15)
+    centermap = torch.zeros((1, 1, 368, 368))
+    model = CPM(14)
     st = time.time()
     mapping = model(img, centermap)
+    for map in mapping:
+        print(map.shape)
     end = time.time()
     print(end - st)
 
